@@ -174,5 +174,14 @@ R = radon(image,0:179);
 axes(handles.radon_transform);
 imshow(R, colormap(hot));
 I = iradon(R,0:179,char(interp(interpIndex)),char(filter(filterIndex)));
+theta = 0:180;
+[R,xp] = radon(I,theta);
+imagesc(theta,xp,R);
+title('R_{\theta} (X\prime)');
+xlabel('\theta (degrees)');
+ylabel('X\prime');
+set(gca,'XTick',0:20:180);
+colormap(hot);
+colorbar
 axes(handles.iradon_transform);
 imshow(I, []);
