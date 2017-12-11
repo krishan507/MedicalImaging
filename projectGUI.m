@@ -22,7 +22,7 @@ function varargout = projectGUI(varargin)
 
 % Edit the above text to modify the response to help projectGUI
 
-% Last Modified by GUIDE v2.5 12-Nov-2017 19:24:13
+% Last Modified by GUIDE v2.5 10-Dec-2017 21:56:03
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -60,7 +60,7 @@ guidata(hObject, handles);
 
 % UIWAIT makes projectGUI wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
-display_images(handles);
+display_images(hObject, handles);
 
 
 
@@ -84,7 +84,7 @@ function image_to_display_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-display_images(handles);
+display_images(hObject, handles);
 
 
 
@@ -115,7 +115,7 @@ function iradon_interp_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns iradon_interp contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from iradon_interp
-display_images(handles);
+display_iradon_transform(handles);
 
 
 % --- Executes during object creation, after setting all properties.
@@ -139,7 +139,7 @@ function iradon_filter_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns iradon_filter contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from iradon_filter
-display_images(handles);
+display_iradon_transform(handles);
 
 
 % --- Executes during object creation, after setting all properties.
@@ -154,27 +154,75 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-function display_images(handles)
+function num_projections_Callback(hObject, eventdata, handles)
+% hObject    handle to num_projections (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of num_projections as text
+%        str2double(get(hObject,'String')) returns contents of num_projections as a double
+
+%Make sure that the number of projections is within bounds
+num_proj = str2double(get(hObject, 'String'));
+if num_proj < 2
+    num_proj= 2;
+elseif num_proj > 180
+    num_proj = 180;
+end
+
+set(handles.num_projections, 'String', num_proj);
+handles.num_proj = num_proj;
+
+%Update the radon transform
+radon_transform = display_radon_transform(handles);
+handles.current_radon = radon_transform;
+
+%Update the iradon transform
+display_iradon_transform(handles);
+guidata(hObject, handles);
+
+% --- Executes during object creation, after setting all properties.
+function num_projections_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to num_projections (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+function display_images(hObject, handles)
+
+%Get the image we need
+image = get_image_from_file(handles);
+handles.current_img = image;
+
+%Display the image
+axes(handles.original_image);
+imshow(handles.current_img, []);
+
+%Display radon transfrom
+handles.num_proj = str2double(get(handles.num_projections, 'String'));
+radon_transform = display_radon_transform(handles);
+handles.current_radon = radon_transform;
+
+%Display iradon transform
+display_iradon_transform(handles);
+guidata(hObject, handles);
+
+function image = get_image_from_file(handles)
 img_dir = './'; % folder of the stack images
 imageNumberSelected = int32(get(handles.image_to_display, 'Value'));
 strfile = sprintf('IM_%04d',imageNumberSelected);
-image=dicomread(fullfile(img_dir, strfile));
-infoImage = dicominfo(fullfile(img_dir, strfile));
+image = dicomread(fullfile(img_dir, strfile));
 
-interp = get(handles.iradon_interp, 'String');
-interp = lower(interp);
-interpIndex = get(handles.iradon_interp, 'Value');
-
-filter = get(handles.iradon_filter, 'String');
-filterIndex = get(handles.iradon_filter, 'Value');
-
-axes(handles.original_image);
-imshow(image, []);
-
+function radon_transform = display_radon_transform(handles)
 axes(handles.radon_transform);
 
-theta = 0:180;
-[R,xp] = radon(image,theta);
+theta = 0:handles.num_proj;
+[R,xp] = radon(handles.current_img,theta);
 imagesc(theta,xp,R);
 title('R_{\theta} (X\prime)');
 xlabel('\theta (degrees)');
@@ -182,8 +230,24 @@ ylabel('X\prime');
 set(gca,'XTick',0:20:180);
 colormap(hot);
 colorbar
-R = radon(image,0:179);
+radon_transform = R;
 
-I = iradon(R,0:179,char(interp(interpIndex)),char(filter(filterIndex)));
+function display_iradon_transform(handles)
+interp = get(handles.iradon_interp, 'String');
+interp = lower(interp);
+interpIndex = get(handles.iradon_interp, 'Value');
+
+filter = get(handles.iradon_filter, 'String');
+filterIndex = get(handles.iradon_filter, 'Value');
+
+I = iradon(handles.current_radon,0:handles.num_proj,char(interp(interpIndex)),char(filter(filterIndex)));
 axes(handles.iradon_transform);
 imshow(I, []);
+
+
+
+
+
+
+
+
